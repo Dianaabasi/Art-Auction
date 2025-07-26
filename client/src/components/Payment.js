@@ -12,7 +12,7 @@ const Payment = ({ amount, auctionId }) => {
       const response = await processPayment({
         amount,
         auctionId,
-        currency: 'USD'
+        currency: 'NGN'
       });
       window.location.href = response.authorization_url;
     } catch (error) {
@@ -29,7 +29,7 @@ const Payment = ({ amount, auctionId }) => {
           Complete Payment
         </Typography>
         <Typography variant="h6" gutterBottom>
-          Amount to Pay: ${amount}
+          Amount to Pay: ₦{amount}
         </Typography>
         <Button
           variant="contained"

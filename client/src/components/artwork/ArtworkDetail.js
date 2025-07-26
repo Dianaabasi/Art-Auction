@@ -4,8 +4,8 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, TextField,
   Snackbar, Alert
 } from '@mui/material';
-import { useParams } from 'react-router-dom';
-import { getArtworkById, startAuction, endAuction, getArtworkBids } from '../../services/api';
+import { useParams, useNavigate } from 'react-router-dom';
+import { getArtworkById, startAuction, endAuction, getArtworkBids, initializePayment } from '../../services/api';
 import { AuthContext } from '../../context/AuthContext';
 import BidForm from '../auction/BidForm';
 import BidHistory from '../auction/BidHistory';
@@ -13,13 +13,21 @@ import io from 'socket.io-client';
 
 const ArtworkDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user: currentUser } = useContext(AuthContext);
+  // Redirect to login if not logged in
+  useEffect(() => {
+    if (!currentUser) {
+      navigate('/login');
+    }
+  }, [currentUser, navigate]);
   const [artwork, setArtwork] = useState(null);
   const [bids, setBids] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [auctionDuration, setAuctionDuration] = useState('');
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'success' });
+  const [paymentLoading, setPaymentLoading] = useState(false);
 
   // Move fetchBids definition before it's used in useEffect
   const fetchBids = async () => {
@@ -94,10 +102,12 @@ const ArtworkDetail = () => {
     }
 
     try {
-      const response = await startAuction(artwork._id, {
+      await startAuction(artwork._id, {
         duration: parseInt(auctionDuration)
       });
-      setArtwork(response);
+      // Always fetch the latest artwork data after starting auction
+      const updatedArtwork = await getArtworkById(artwork._id);
+      setArtwork(updatedArtwork);
       await fetchBids();
       setOpenDialog(false);
       setNotification({
@@ -106,7 +116,6 @@ const ArtworkDetail = () => {
         severity: 'success'
       });
     } catch (error) {
-      console.error('Error starting auction:', error);
       setNotification({
         open: true,
         message: error.response?.data?.message || 'Failed to start auction. Please try again.',
@@ -133,7 +142,7 @@ const ArtworkDetail = () => {
 
   const canEdit = () => {
     if (!artwork || !currentUser || !artwork.artist) return false;
-    return artwork.artist._id === currentUser._id;
+    return artwork.artist._id?.toString() === currentUser._id?.toString();
   };
 
   const [isWithinAuctionTime, setIsWithinAuctionTime] = useState(false);
@@ -166,7 +175,7 @@ const ArtworkDetail = () => {
     const isActive = artwork.status === 'active';
     
     // Check if user is not the artist
-    const isNotArtist = artwork.artist._id !== currentUser._id;
+    const isNotArtist = artwork.artist._id?.toString() !== currentUser._id?.toString();
     
     // Check if within auction time
     const isWithinTime = isWithinAuctionTime;
@@ -184,7 +193,7 @@ const ArtworkDetail = () => {
 
   const canStartAuction = () => {
     if (!artwork || !currentUser) return false;
-    const isArtist = artwork.artist._id === currentUser._id;
+    const isArtist = artwork.artist._id?.toString() === currentUser._id?.toString();
     const isPending = artwork.status === 'pending';
     const isExpired = artwork.status === 'expired';
     return isArtist && (isPending || isExpired);
@@ -192,28 +201,45 @@ const ArtworkDetail = () => {
 
   const canEndAuction = () => {
     if (!artwork || !currentUser) return false;
-    const isArtist = artwork.artist._id === currentUser._id;
+    const isArtist = artwork.artist._id?.toString() === currentUser._id?.toString();
     return isArtist && artwork.status === 'active' && isWithinAuctionTime;
   };
 
   const handleEndAuction = async () => {
     try {
-      const response = await endAuction(artwork._id);
-      setArtwork(response);
+      await endAuction(artwork._id);
+      // Always fetch the latest artwork data after ending auction
+      const updatedArtwork = await getArtworkById(artwork._id);
+      setArtwork(updatedArtwork);
       await fetchBids();
-      const newStatus = response.totalBids > 0 ? 'sold' : 'expired';
       setNotification({
         open: true,
-        message: `Auction ${newStatus === 'sold' ? 'ended' : 'expired'} successfully!`,
+        message: `Auction ended successfully!`,
         severity: 'success'
       });
     } catch (error) {
-      console.error('Error ending auction:', error);
       setNotification({
         open: true,
         message: error.response?.data?.message || 'Failed to end auction',
         severity: 'error'
       });
+    }
+  };
+
+  // Payment: Show Pay Now button if user is winner and payment not completed
+  const userBid = bids.find(bid => bid.bidder?.toString() === currentUser?._id?.toString());
+  const isWinner = artwork && artwork.status === 'sold' && currentUser && artwork.winner && artwork.winner._id?.toString() === currentUser._id?.toString();
+  const paymentCompleted = userBid && userBid.paymentCompleted;
+
+  const handlePayNow = async () => {
+    setPaymentLoading(true);
+    try {
+      const data = await initializePayment(artwork.currentBid, artwork._id);
+      window.location.href = data.authorization_url;
+    } catch (error) {
+      setNotification({ open: true, message: error.error || 'Failed to initialize payment', severity: 'error' });
+    } finally {
+      setPaymentLoading(false);
     }
   };
 
@@ -251,7 +277,7 @@ const ArtworkDetail = () => {
                 {artwork.description}
               </Typography>
               <Typography variant="h6" gutterBottom>
-                Current Bid: ${artwork.currentBid || artwork.startingPrice}
+                Current Bid: ₦{artwork.currentBid || artwork.startingPrice}
               </Typography>
               <Typography variant="body2" color="text.secondary" gutterBottom>
                 Total Bids: {artwork.totalBids || 0}
@@ -291,13 +317,10 @@ const ArtworkDetail = () => {
                 </Box>
               )}
 
-              {artwork.status === 'active' && currentUser && !canBid() && (
+              {/* Only show this message if auction is active and user is the artist */}
+              {artwork.status === 'active' && currentUser && !canBid() && artwork.artist._id?.toString() === currentUser._id?.toString() && (
                 <Typography variant="body2" color="error" sx={{ mt: 2 }}>
-                  {artwork.artist._id === currentUser._id 
-                    ? 'Artists cannot bid on their own artwork'
-                    : !isWithinAuctionTime 
-                      ? 'This auction is not currently active'
-                      : 'You cannot place bids at this time'}
+                  Artists cannot bid on their own artwork
                 </Typography>
               )}
 
@@ -316,6 +339,27 @@ const ArtworkDetail = () => {
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
                   This auction has expired without any bids
                 </Typography>
+              )}
+              {artwork.provenanceUrl && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="body2">Provenance/COA:</Typography>
+                  <a href={`${process.env.REACT_APP_API_URL}${artwork.provenanceUrl}`} target="_blank" rel="noopener noreferrer">
+                    View Document
+                  </a>
+                </Box>
+              )}
+              {/* Payment button for auction winner */}
+              {isWinner && !paymentCompleted && (
+                <Box sx={{ mt: 3 }}>
+                  <Button
+                    variant="contained"
+                    color="success"
+                    onClick={handlePayNow}
+                    disabled={paymentLoading}
+                  >
+                    {paymentLoading ? 'Redirecting...' : 'Pay Now'}
+                  </Button>
+                </Box>
               )}
             </Paper>
           </Grid>

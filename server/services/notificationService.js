@@ -1,6 +1,7 @@
 const Notification = require('../models/Notification');
 const User = require('../models/User');
 const Artwork = require('../models/Artwork');
+const Bid = require('../models/Bid');
 
 /**
  * Create a notification when a bid is placed

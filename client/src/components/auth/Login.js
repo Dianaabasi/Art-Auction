@@ -1,8 +1,13 @@
 import React, { useState, useContext } from 'react';
 import { 
   Container, Paper, TextField, Button, Typography, Box, Divider,
-  Dialog, DialogTitle, DialogContent, DialogActions, RadioGroup, FormControlLabel, Radio 
+  Dialog, DialogTitle, DialogContent, DialogActions, RadioGroup, 
+  FormControlLabel, Radio, Alert, CircularProgress, IconButton
 } from '@mui/material';
+import { 
+  Visibility, VisibilityOff, Error as ErrorIcon,
+  CheckCircle as SuccessIcon
+} from '@mui/icons-material';
 import { GoogleLogin } from '@react-oauth/google';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
@@ -13,53 +18,158 @@ const Login = () => {
     email: '',
     password: ''
   });
+  const [formErrors, setFormErrors] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  
   const navigate = useNavigate();
   const { login } = useContext(AuthContext);
   const [openRoleDialog, setOpenRoleDialog] = useState(false);
   const [selectedRole, setSelectedRole] = useState('');
   const [tempCredential, setTempCredential] = useState(null);
-  const [error, setError] = useState('');
+
+  // Input validation
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!formData.email) {
+      errors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      errors.email = 'Please enter a valid email address';
+    }
+    
+    if (!formData.password) {
+      errors.password = 'Password is required';
+    } else if (formData.password.length < 6) {
+      errors.password = 'Password must be at least 6 characters';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+    
+    // Clear field-specific error when user starts typing
+    if (formErrors[name]) {
+      setFormErrors({ ...formErrors, [name]: '' });
+    }
+    
+    // Clear general error when user makes changes
+    if (error) {
+      setError('');
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
+    
+    if (!validateForm()) {
+      return;
+    }
+    
+    setIsLoading(true);
     
     try {
       await login(formData);
-      navigate('/');
+      setSuccess('Login successful! Redirecting...');
+      setTimeout(() => {
+        navigate('/');
+      }, 1000);
     } catch (error) {
-      setError(error.message || 'Login failed. Please try again.');
+      console.error('Login error:', error);
+      
+      // Handle specific error types
+      if (error.response?.status === 401) {
+        setError('Invalid email or password. Please try again.');
+      } else if (error.response?.status === 403) {
+        setError('Account is disabled. Please contact support.');
+      } else if (error.response?.status === 429) {
+        setError('Too many login attempts. Please try again later.');
+      } else if (error.response?.status >= 500) {
+        setError('Server error. Please try again later.');
+      } else if (error.message) {
+        setError(error.message);
+      } else {
+        setError('Login failed. Please check your connection and try again.');
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleGoogleSuccess = async (credentialResponse) => {
+    setIsGoogleLoading(true);
+    setError('');
+    setSuccess('');
+    
     try {
       // Try to login directly first
       const data = await handleGoogleLogin(credentialResponse.credential);
       if (data.token) {
-        navigate('/');
-        window.location.reload();
+        setSuccess('Google login successful! Redirecting...');
+        setTimeout(() => {
+          navigate('/');
+          window.location.reload();
+        }, 1000);
         return;
       }
     } catch (error) {
       // If user doesn't exist, then show role selection
-      setTempCredential(credentialResponse.credential);
-      setOpenRoleDialog(true);
+      if (error.message?.includes('User not found') || error.response?.status === 404) {
+        setTempCredential(credentialResponse.credential);
+        setOpenRoleDialog(true);
+      } else {
+        console.error('Google login error:', error);
+        setError('Google login failed. Please try again.');
+      }
+    } finally {
+      setIsGoogleLoading(false);
     }
   };
 
+  const handleGoogleError = () => {
+    setError('Google login failed. Please try again.');
+  };
+
   const handleRoleSelect = async () => {
+    if (!selectedRole) {
+      setError('Please select a role');
+      return;
+    }
+    
+    setIsGoogleLoading(true);
+    setError('');
+    
     try {
       const data = await handleGoogleLogin(tempCredential, selectedRole, false);
       if (data.token) {
-        // The token is already stored in localStorage by handleGoogleLogin
-        navigate('/');
-        window.location.reload(); // Ensure the app recognizes the new auth state
+        setSuccess('Account created successfully! Redirecting...');
+        setTimeout(() => {
+          navigate('/');
+          window.location.reload();
+        }, 1000);
       }
     } catch (error) {
-      console.error('Google login error:', error);
+      console.error('Google registration error:', error);
+      setError(error.message || 'Account creation failed. Please try again.');
+    } finally {
+      setIsGoogleLoading(false);
+      setOpenRoleDialog(false);
     }
-    setOpenRoleDialog(false);
+  };
+
+  const clearMessages = () => {
+    setError('');
+    setSuccess('');
+    setFormErrors({});
   };
 
   return (
@@ -69,6 +179,37 @@ const Login = () => {
           Sign In
         </Typography>
         
+        {/* Error Alert */}
+        {error && (
+          <Alert 
+            severity="error" 
+            sx={{ width: '100%', mb: 2 }}
+            action={
+              <IconButton
+                aria-label="close"
+                color="inherit"
+                size="small"
+                onClick={clearMessages}
+              >
+                <ErrorIcon />
+              </IconButton>
+            }
+          >
+            {error}
+          </Alert>
+        )}
+
+        {/* Success Alert */}
+        {success && (
+          <Alert 
+            severity="success" 
+            sx={{ width: '100%', mb: 2 }}
+            icon={<SuccessIcon />}
+          >
+            {success}
+          </Alert>
+        )}
+        
         <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1, width: '100%' }}>
           <TextField
             margin="normal"
@@ -76,10 +217,14 @@ const Login = () => {
             fullWidth
             label="Email Address"
             name="email"
+            type="email"
             autoComplete="email"
             autoFocus
             value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            onChange={handleInputChange}
+            error={!!formErrors.email}
+            helperText={formErrors.email}
+            disabled={isLoading}
           />
           <TextField
             margin="normal"
@@ -87,38 +232,71 @@ const Login = () => {
             fullWidth
             name="password"
             label="Password"
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             autoComplete="current-password"
             value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            onChange={handleInputChange}
+            error={!!formErrors.password}
+            helperText={formErrors.password}
+            disabled={isLoading}
+            InputProps={{
+              endAdornment: (
+                <IconButton
+                  aria-label="toggle password visibility"
+                  onClick={() => setShowPassword(!showPassword)}
+                  edge="end"
+                >
+                  {showPassword ? <VisibilityOff /> : <Visibility />}
+                </IconButton>
+              ),
+            }}
           />
           <Button
             type="submit"
             fullWidth
             variant="contained"
+            disabled={isLoading}
             sx={{ mt: 3, mb: 2 }}
           >
-            Sign In
+            {isLoading ? (
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <CircularProgress size={20} sx={{ mr: 1 }} />
+                Signing In...
+              </Box>
+            ) : (
+              'Sign In'
+            )}
           </Button>
         </Box>
 
         <Divider sx={{ width: '100%', my: 2 }}>OR</Divider>
 
         <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
-          <GoogleLogin
-            onSuccess={handleGoogleSuccess}
-            onError={() => console.log('Login Failed')}
-            useOneTap={false}
-            cookiePolicy={'single_host_origin'}
-            scope="email profile"
-            prompt="select_account"
-          />
+          {isGoogleLoading ? (
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <CircularProgress size={20} sx={{ mr: 1 }} />
+              Processing...
+            </Box>
+          ) : (
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+              useOneTap={false}
+              cookiePolicy={'single_host_origin'}
+              scope="email profile"
+              prompt="select_account"
+            />
+          )}
         </Box>
       </Paper>
+
       {/* Role Selection Dialog */}
       <Dialog open={openRoleDialog} onClose={() => setOpenRoleDialog(false)}>
         <DialogTitle>Select Your Role</DialogTitle>
         <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Please select your role to complete the registration:
+          </Typography>
           <RadioGroup
             value={selectedRole}
             onChange={(e) => setSelectedRole(e.target.value)}
@@ -128,9 +306,15 @@ const Login = () => {
           </RadioGroup>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenRoleDialog(false)}>Cancel</Button>
-          <Button onClick={handleRoleSelect} variant="contained" disabled={!selectedRole}>
-            Continue
+          <Button onClick={() => setOpenRoleDialog(false)} disabled={isGoogleLoading}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleRoleSelect} 
+            variant="contained" 
+            disabled={!selectedRole || isGoogleLoading}
+          >
+            {isGoogleLoading ? 'Creating Account...' : 'Continue'}
           </Button>
         </DialogActions>
       </Dialog>

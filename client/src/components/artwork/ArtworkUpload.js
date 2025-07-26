@@ -10,7 +10,8 @@ const ArtworkUpload = () => {
     title: '',
     description: '',
     startingPrice: '',
-    image: null
+    image: null,
+    provenance: null
   });
 
   const handleSubmit = async (e) => {
@@ -21,6 +22,9 @@ const ArtworkUpload = () => {
       formDataToSend.append('description', formData.description);
       formDataToSend.append('startingPrice', formData.startingPrice);
       formDataToSend.append('image', formData.image);
+      if (formData.provenance) {
+        formDataToSend.append('provenance', formData.provenance);
+      }
 
       await createArtwork(formDataToSend);
       setOpenSnackbar(true);
@@ -38,7 +42,7 @@ const ArtworkUpload = () => {
     if (e.target.type === 'file') {
       setFormData({
         ...formData,
-        image: e.target.files[0]
+        [e.target.name]: e.target.files[0]
       });
     } else {
       setFormData({
@@ -93,6 +97,7 @@ const ArtworkUpload = () => {
             style={{ display: 'none' }}
             id="raised-button-file"
             type="file"
+            name="image"
             onChange={handleChange}
           />
           <label htmlFor="raised-button-file">
@@ -108,6 +113,30 @@ const ArtworkUpload = () => {
           {formData.image && (
             <Typography variant="body2" style={{ marginTop: 10 }}>
               Selected file: {formData.image.name}
+            </Typography>
+          )}
+          {/* Provenance/COA upload */}
+          <input
+            accept="application/pdf,image/*"
+            style={{ display: 'none' }}
+            id="provenance-file"
+            type="file"
+            name="provenance"
+            onChange={handleChange}
+          />
+          <label htmlFor="provenance-file">
+            <Button
+              variant="outlined"
+              component="span"
+              fullWidth
+              style={{ marginTop: 20 }}
+            >
+              Upload Provenance/COA (optional)
+            </Button>
+          </label>
+          {formData.provenance && (
+            <Typography variant="body2" style={{ marginTop: 10 }}>
+              Selected provenance: {formData.provenance.name}
             </Typography>
           )}
           <Button

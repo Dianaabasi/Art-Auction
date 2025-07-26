@@ -14,10 +14,21 @@ const storage = multer.diskStorage({
 
 // File filter
 const fileFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith('image/')) {
-    cb(null, true);
+  if (file.fieldname === 'image') {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Not an image! Please upload an image file.'), false);
+    }
+  } else if (file.fieldname === 'provenance') {
+    // Allow PDF or image for provenance/COA
+    if (file.mimetype === 'application/pdf' || file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Provenance must be a PDF or image file.'), false);
+    }
   } else {
-    cb(new Error('Not an image! Please upload an image file.'), false);
+    cb(new Error('Unknown file field.'), false);
   }
 };
 
@@ -25,7 +36,7 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
+    fileSize: 10 * 1024 * 1024 // 10MB limit for provenance
   }
 });
 

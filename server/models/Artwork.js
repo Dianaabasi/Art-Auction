@@ -35,8 +35,8 @@ const artworkSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['draft', 'pending', 'active', 'sold', 'expired'],
-    default: 'pending'
+    enum: ['waiting', 'pending', 'active', 'sold', 'expired', 'rejected'],
+    default: 'waiting'
   },
   artist: {
     type: mongoose.Schema.Types.ObjectId,
@@ -46,6 +46,10 @@ const artworkSchema = new mongoose.Schema({
   winner: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
+    default: null
+  },
+  provenanceUrl: {
+    type: String,
     default: null
   },
   createdAt: {

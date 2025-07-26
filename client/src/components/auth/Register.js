@@ -2,8 +2,11 @@ import React, { useState, useContext } from 'react';
 import { 
   Container, Paper, TextField, Button, Typography, Box, Divider,
   RadioGroup, FormControlLabel, Radio, Dialog, DialogTitle,
-  DialogContent, DialogActions
+  DialogContent, DialogActions, IconButton
 } from '@mui/material';
+import { 
+  Visibility, VisibilityOff
+} from '@mui/icons-material';
 import { GoogleLogin } from '@react-oauth/google';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
@@ -22,6 +25,8 @@ const Register = () => {
   });
   const [openRoleDialog, setOpenRoleDialog] = useState(false);
   const [tempCredential, setTempCredential] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -119,9 +124,20 @@ const Register = () => {
             fullWidth
             name="password"
             label="Password"
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             value={formData.password}
             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            InputProps={{
+              endAdornment: (
+                <IconButton
+                  aria-label="toggle password visibility"
+                  onClick={() => setShowPassword(!showPassword)}
+                  edge="end"
+                >
+                  {showPassword ? <VisibilityOff /> : <Visibility />}
+                </IconButton>
+              ),
+            }}
           />
           <TextField
             margin="normal"
@@ -129,9 +145,20 @@ const Register = () => {
             fullWidth
             name="confirmPassword"
             label="Confirm Password"
-            type="password"
+            type={showConfirmPassword ? 'text' : 'password'}
             value={formData.confirmPassword}
             onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+            InputProps={{
+              endAdornment: (
+                <IconButton
+                  aria-label="toggle password visibility"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  edge="end"
+                >
+                  {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+                </IconButton>
+              ),
+            }}
           />
           <RadioGroup
             value={formData.role}

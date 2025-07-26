@@ -4,6 +4,9 @@ const Bid = require('../models/Bid');
 const Artwork = require('../models/Artwork');
 const auth = require('../middleware/auth');
 const { notifyBidPlaced } = require('../services/notificationService');
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+const adminAuth = require('../middleware/admin');
 
 // GET /api/bids/artwork/:id - Get bids for an artwork
 router.get('/artwork/:id', async (req, res) => {
@@ -56,7 +59,8 @@ router.post('/:artworkId', auth, async (req, res) => {
     }
     
     // Check if user is not the artist
-    if (req.user.id === artwork.artist.toString()) {
+    const userId = req.user._id || req.user.id;
+    if (userId?.toString() === artwork.artist.toString()) {
       return res.status(400).json({ message: 'You cannot bid on your own artwork' });
     }
     
@@ -64,7 +68,7 @@ router.post('/:artworkId', auth, async (req, res) => {
     const newBid = new Bid({
       amount,
       artwork: artworkId,
-      bidder: req.user.id,
+      bidder: userId,
       status: 'active'
     });
     
@@ -73,7 +77,7 @@ router.post('/:artworkId', auth, async (req, res) => {
     // Update artwork with new bid
     artwork.currentBid = amount;
     artwork.totalBids = (artwork.totalBids || 0) + 1;
-    artwork.highestBidder = req.user.id;
+    artwork.highestBidder = userId;
     await artwork.save();
     
     // Notify users about the new bid
@@ -84,7 +88,7 @@ router.post('/:artworkId', auth, async (req, res) => {
       artworkId,
       amount,
       bidder: {
-        id: req.user.id,
+        id: userId,
         name: req.user.name
       },
       timestamp: new Date()
@@ -97,6 +101,50 @@ router.post('/:artworkId', auth, async (req, res) => {
     });
   } catch (error) {
     console.error('Error placing bid:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Admin: Get all bids (with optional filters)
+router.get('/', [auth, adminAuth], async (req, res) => {
+  try {
+    const { user, artwork } = req.query;
+    let query = {};
+    if (user) query.bidder = user;
+    if (artwork) query.artwork = artwork;
+    const bids = await Bid.find(query)
+      .sort({ createdAt: -1 })
+      .populate('bidder', 'name email')
+      .populate('artwork', 'title');
+    res.json(bids);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Admin: Bid analytics (most active users/artworks)
+router.get('/analytics', [auth, adminAuth], async (req, res) => {
+  try {
+    // Most active users
+    const activeUsers = await Bid.aggregate([
+      { $group: { _id: '$bidder', bidCount: { $sum: 1 } } },
+      { $sort: { bidCount: -1 } },
+      { $limit: 10 },
+      { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'user' } },
+      { $unwind: '$user' },
+      { $project: { _id: 0, userId: '$_id', name: '$user.name', email: '$user.email', bidCount: 1 } }
+    ]);
+    // Most active artworks
+    const activeArtworks = await Bid.aggregate([
+      { $group: { _id: '$artwork', bidCount: { $sum: 1 } } },
+      { $sort: { bidCount: -1 } },
+      { $limit: 10 },
+      { $lookup: { from: 'artworks', localField: '_id', foreignField: '_id', as: 'artwork' } },
+      { $unwind: '$artwork' },
+      { $project: { _id: 0, artworkId: '$_id', title: '$artwork.title', bidCount: 1 } }
+    ]);
+    res.json({ activeUsers, activeArtworks });
+  } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
 });

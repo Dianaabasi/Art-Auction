@@ -3,12 +3,20 @@ import {
   Container, Grid, Typography, Avatar, Box, 
   Divider, Paper, CircularProgress 
 } from '@mui/material';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import ArtworkCard from '../artwork/ArtworkCard';
 
 const ArtistDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem('user'));
+  // Redirect to login if not logged in
+  useEffect(() => {
+    if (!user) {
+      navigate('/login');
+    }
+  }, [user, navigate]);
   const [artist, setArtist] = useState(null);
   const [artworks, setArtworks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -92,21 +100,43 @@ const ArtistDetail = () => {
         </Typography>
         <Divider sx={{ mb: 4 }} />
         
-        <Grid container spacing={3}>
-          {artworks.length > 0 ? (
-            artworks.map((artwork) => (
-              <Grid item xs={12} sm={6} md={4} key={artwork._id}>
-                <ArtworkCard artwork={artwork} />
+        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+          <Grid 
+            container 
+            spacing={3} 
+            sx={{ 
+              maxWidth: '100%',
+              justifyContent: 'center'
+            }}
+          >
+            {artworks.length > 0 ? (
+              artworks.map((artwork) => (
+                <Grid 
+                  item 
+                  xs={12} 
+                  sm={6} 
+                  md={4} 
+                  lg={3}
+                  key={artwork._id}
+                  sx={{ 
+                    display: 'flex',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <Box sx={{ width: '100%', maxWidth: 350 }}>
+                    <ArtworkCard artwork={artwork} />
+                  </Box>
+                </Grid>
+              ))
+            ) : (
+              <Grid item xs={12}>
+                <Typography variant="body1" align="center" color="text.secondary">
+                  No artworks available yet
+                </Typography>
               </Grid>
-            ))
-          ) : (
-            <Grid item xs={12}>
-              <Typography variant="body1" align="center" color="text.secondary">
-                No artworks available yet
-              </Typography>
-            </Grid>
-          )}
-        </Grid>
+            )}
+          </Grid>
+        </Box>
       </Box>
     </Container>
   );

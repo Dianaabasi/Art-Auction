@@ -28,7 +28,7 @@ const BidForm = ({ artworkId, currentBid, minBidIncrement = 10, onBidPlaced }) =
     }
     
     if (bidAmount <= currentBid) {
-      showError(`Your bid must be higher than the current bid of $${currentBid}`);
+      showError(`Your bid must be higher than the current bid of ₦${currentBid}`);
       return;
     }
 
@@ -72,7 +72,7 @@ const BidForm = ({ artworkId, currentBid, minBidIncrement = 10, onBidPlaced }) =
           value={bidAmount}
           onChange={handleBidChange}
           InputProps={{
-            startAdornment: <InputAdornment position="start">$</InputAdornment>,
+            startAdornment: <InputAdornment position="start">₦</InputAdornment>,
           }}
           sx={{ mb: 2 }}
           inputProps={{ 
@@ -82,7 +82,7 @@ const BidForm = ({ artworkId, currentBid, minBidIncrement = 10, onBidPlaced }) =
         />
         
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Minimum bid: ${currentBid + minBidIncrement}
+          Minimum bid: ₦{currentBid + minBidIncrement}
         </Typography>
         
         <Button

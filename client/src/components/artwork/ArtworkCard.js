@@ -37,12 +37,23 @@ const ArtworkCard = ({ artwork }) => {
     }
   };
 
-  const buttonText = artwork.status === 'active' && artwork.artist._id !== currentUser?._id
-    ? 'Place Bid'
-    : 'View Artwork';
+  const isAuctionActive = artwork.status === 'active' && new Date() < new Date(artwork.auctionEndTime);
+  const isOwner = artwork.artist._id?.toString() === currentUser?._id?.toString();
+  const buttonText = isAuctionActive && !isOwner ? 'Place Bid' : 'View Artwork';
+
+  const canStartAuction = () => {
+    if (!artwork || !currentUser) return false;
+    const isArtist = artwork.artist._id === currentUser._id;
+    const isPending = artwork.status === 'pending';
+    const isExpired = artwork.status === 'expired';
+    return isArtist && (isPending || isExpired);
+  };
 
   return (
     <Card sx={{
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
       transition: 'transform 0.3s, box-shadow 0.3s',
       '&:hover': {
         transform: 'translateY(-8px)',
@@ -55,8 +66,15 @@ const ArtworkCard = ({ artwork }) => {
         image={imageUrl}
         alt={artwork.title}
         onError={(e) => {
-          e.target.src = '/placeholder-image.jpg';
           console.error('Image failed to load:', imageUrl);
+          console.error('Error details:', e);
+          // Hide the image and show placeholder
+          
+          e.target.style.display = 'none';
+          const placeholder = e.target.parentNode.querySelector('.image-placeholder');
+          if (placeholder) {
+            placeholder.style.display = 'flex';
+          }
         }}
         sx={{
           transition: 'transform 0.3s',
@@ -65,50 +83,65 @@ const ArtworkCard = ({ artwork }) => {
           }
         }}
       />
-      <CardContent>
-        <Typography variant="h6" noWrap>{artwork.title}</Typography>
+      {/* Fallback placeholder */}
+      <Box
+        className="image-placeholder"
+        sx={{
+          height: 200,
+          display: 'none',
+          bgcolor: 'grey.200',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}
+      >
+        <Typography color="text.secondary">Image not available</Typography>
+      </Box>
+      <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+        <Typography variant="h6" noWrap sx={{ mb: 1 }}>{artwork.title}</Typography>
         <Typography variant="body2" color="textSecondary" gutterBottom>
           {typeof artwork.artist === 'object' ? artwork.artist.name : artwork.artist}
         </Typography>
         
-        <Stack spacing={1}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="subtitle1" color="primary">
-              Starting: ${artwork.startingPrice}
-            </Typography>
-            {artwork.currentBid && (
-              <Typography variant="subtitle1" color="secondary" fontWeight="bold">
-                Current: ${artwork.currentBid}
+        <Box sx={{ flexGrow: 1 }}>
+          <Stack spacing={1}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="subtitle1" color="primary">
+                Starting: ₦{artwork.startingPrice}
               </Typography>
-            )}
-          </Box>
+              {artwork.currentBid && (
+                <Typography variant="subtitle1" color="secondary" fontWeight="bold">
+                  Current: ₦{artwork.currentBid}
+                </Typography>
+              )}
+            </Box>
 
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Chip 
-              label={getAuctionStatus()}
-              color={getStatusColor()}
-              size="small"
-              sx={{ minWidth: '100px' }}
-            />
-            {artwork.totalBids > 0 && (
-              <Typography variant="body2" color="text.secondary">
-                {artwork.totalBids} bid{artwork.totalBids > 1 ? 's' : ''}
-              </Typography>
-            )}
-          </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Chip 
+                label={getAuctionStatus()}
+                color={getStatusColor()}
+                size="small"
+                sx={{ minWidth: '100px' }}
+              />
+              {artwork.totalBids > 0 && (
+                <Typography variant="body2" color="text.secondary">
+                  {artwork.totalBids} bid{artwork.totalBids > 1 ? 's' : ''}
+                </Typography>
+              )}
+            </Box>
+          </Stack>
+        </Box>
 
-          <Button 
-            variant="contained" 
-            color="primary" 
-            fullWidth
-            component={Link}
-            to={`/artwork/${artwork._id}`}
-            onClick={handleViewArtwork}
-            sx={{ mt: 1 }}
-          >
-            {buttonText}
-          </Button>
-        </Stack>
+        <Button 
+          variant="contained" 
+          color="primary" 
+          fullWidth
+          component={Link}
+          to={`/artwork/${artwork._id}`}
+          onClick={handleViewArtwork}
+          sx={{ mt: 2 }}
+        >
+          {buttonText}
+        </Button>
       </CardContent>
     </Card>
   );

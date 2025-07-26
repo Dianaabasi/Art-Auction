@@ -16,7 +16,11 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
-  Divider
+  Divider,
+  Modal,
+  Switch,
+  FormControlLabel,
+  Box as MuiBox
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -30,9 +34,18 @@ import {
 } from '@mui/icons-material';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
+import { useNotifications } from '../../context/NotificationContext';
+
+const notificationTypes = [
+  { key: 'bidAlerts', label: 'Bid Alerts' },
+  { key: 'auctionReminders', label: 'Auction Reminders' },
+  { key: 'artworkSold', label: 'Artwork Sold' },
+  { key: 'payoutUpdates', label: 'Payout Updates' },
+];
 
 const Navbar = () => {
   const { user, isAuthenticated, logout } = useContext(AuthContext);
+  const { notifications, markAsRead, clearNotifications } = useNotifications();
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -40,6 +53,16 @@ const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notificationAnchor, setNotificationAnchor] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [preferences, setPreferences] = useState(() => {
+    const saved = localStorage.getItem('notificationPreferences');
+    return saved ? JSON.parse(saved) : {
+      bidAlerts: true,
+      auctionReminders: true,
+      artworkSold: true,
+      payoutUpdates: true,
+    };
+  });
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -69,6 +92,14 @@ const Navbar = () => {
     navigate('/profile');
   };
 
+  const handleToggle = (key) => {
+    setPreferences((prev) => {
+      const updated = { ...prev, [key]: !prev[key] };
+      localStorage.setItem('notificationPreferences', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   const getNavItems = () => {
     const items = [
       { text: 'Home', icon: <HomeIcon />, path: '/' },
@@ -85,6 +116,8 @@ const Navbar = () => {
 
     return items;
   };
+
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   const renderMobileDrawer = () => (
     <Drawer
@@ -160,7 +193,7 @@ const Navbar = () => {
         {isAuthenticated ? (
           <Box sx={{ display: 'flex' }}>
             <IconButton color="inherit" onClick={handleNotificationMenuOpen}>
-              <Badge badgeContent={4} color="error">
+              <Badge badgeContent={unreadCount} color="error">
                 <NotificationsIcon />
               </Badge>
             </IconButton>
@@ -187,14 +220,76 @@ const Navbar = () => {
         open={Boolean(notificationAnchor)}
         onClose={handleMenuClose}
       >
-        <MenuItem onClick={handleMenuClose}>
+        <MenuItem onClick={() => { setSettingsOpen(true); handleMenuClose(); }}>
           Notification Settings
         </MenuItem>
         <Divider />
-        <MenuItem onClick={handleMenuClose}>
-          No new notifications
-        </MenuItem>
+        {notifications.length === 0 ? (
+          <MenuItem onClick={handleMenuClose}>No new notifications</MenuItem>
+        ) : (
+          notifications.slice(0, 5).map((n) => (
+            <MenuItem
+              key={n.id}
+              onClick={() => {
+                markAsRead(n.id);
+                handleMenuClose();
+              }}
+              selected={!n.read}
+            >
+              {n.message}
+            </MenuItem>
+          ))
+        )}
+        {notifications.length > 0 && <Divider />}
+        {notifications.length > 0 && (
+          <MenuItem onClick={() => { clearNotifications(); handleMenuClose(); }}>
+            Clear All
+          </MenuItem>
+        )}
       </Menu>
+      <Modal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        aria-labelledby="notification-settings-modal"
+      >
+        <MuiBox sx={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: 350,
+          bgcolor: 'background.paper',
+          borderRadius: 2,
+          boxShadow: 24,
+          p: 4,
+        }}>
+          <Typography id="notification-settings-modal" variant="h6" gutterBottom>
+            Notification Preferences
+          </Typography>
+          {notificationTypes.map((type) => (
+            <FormControlLabel
+              key={type.key}
+              control={
+                <Switch
+                  checked={preferences[type.key]}
+                  onChange={() => handleToggle(type.key)}
+                  color="primary"
+                />
+              }
+              label={type.label}
+              sx={{ display: 'block', mb: 1 }}
+            />
+          ))}
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => setSettingsOpen(false)}
+            sx={{ mt: 2, float: 'right' }}
+          >
+            Close
+          </Button>
+        </MuiBox>
+      </Modal>
 
       <Menu
         anchorEl={anchorEl}

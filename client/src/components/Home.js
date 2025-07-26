@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Grid, Container, Typography } from '@mui/material';
+import { Grid, Container, Typography, Box } from '@mui/material';
 import { ArtworkCard } from './artwork';
 import { getAllArtworks } from '../services/api';
 import RecentArtworksSlider from './home/RecentArtworksSlider';
@@ -32,21 +32,43 @@ const Home = () => {
       <Typography variant="h2" component="h1" gutterBottom>
         Featured Artworks
       </Typography>
-      <Grid container spacing={3}>
-        {Array.isArray(artworks) && artworks.length > 0 ? (
-          artworks.map((artwork) => (
-            <Grid item xs={12} sm={6} md={4} key={artwork._id}>
-              <ArtworkCard artwork={artwork} />
+      <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+        <Grid 
+          container 
+          spacing={3} 
+          sx={{ 
+            maxWidth: '100%',
+            justifyContent: 'center'
+          }}
+        >
+          {Array.isArray(artworks) && artworks.length > 0 ? (
+            artworks.map((artwork) => (
+              <Grid 
+                item 
+                xs={12} 
+                sm={6} 
+                md={4} 
+                lg={3}
+                key={artwork._id}
+                sx={{ 
+                  display: 'flex',
+                  justifyContent: 'center'
+                }}
+              >
+                <Box sx={{ width: '100%', maxWidth: 350 }}>
+                  <ArtworkCard artwork={artwork} />
+                </Box>
+              </Grid>
+            ))
+          ) : (
+            <Grid item xs={12}>
+              <Typography variant="h6" align="center">
+                No artworks available
+              </Typography>
             </Grid>
-          ))
-        ) : (
-          <Grid item xs={12}>
-            <Typography variant="h6" align="center">
-              No artworks available
-            </Typography>
-          </Grid>
-        )}
-      </Grid>
+          )}
+        </Grid>
+      </Box>
     </Container>
   );
 };

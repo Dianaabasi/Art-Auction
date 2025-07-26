@@ -12,6 +12,15 @@ const server = http.createServer(app);
 const io = setupWebSocket(server);
 app.set('io', io);
 
+// Socket.io: Join user room for notifications
+io.on('connection', (socket) => {
+  socket.on('join-user-room', (userId) => {
+    if (userId) {
+      socket.join(userId);
+    }
+  });
+});
+
 // Middleware
 app.use(cors());
 app.use(express.json());

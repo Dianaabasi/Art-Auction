@@ -19,11 +19,16 @@ const SliderContainer = styled(Box)(({ theme }) => ({
 const SlideImage = styled(Box)(({ theme }) => ({
   width: '100%',
   height: '100%',
-  backgroundSize: 'cover',
-  backgroundPosition: 'center',
   position: 'absolute',
   transition: 'all 0.5s ease-in-out'
 }));
+
+const SlideImg = styled('img')({
+  width: '100%',
+  height: '100%',
+  objectFit: 'cover',
+  objectPosition: 'center'
+});
 
 const SlideContent = styled(Box)(({ theme }) => ({
   position: 'absolute',
@@ -49,6 +54,7 @@ const NavigationButton = styled(IconButton)(({ theme }) => ({
 const RecentArtworksSlider = () => {
   const [artworks, setArtworks] = useState([]);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [imageErrors, setImageErrors] = useState({});
 
   useEffect(() => {
     const fetchRecentArtworks = async () => {
@@ -70,6 +76,11 @@ const RecentArtworksSlider = () => {
     return () => clearInterval(interval);
   }, [artworks.length]);
 
+  const handleImageError = (artworkId) => {
+    console.error('Slider image failed to load for artwork:', artworkId);
+    setImageErrors(prev => ({ ...prev, [artworkId]: true }));
+  };
+
   const handleNext = () => {
     setCurrentSlide((prev) => (prev + 1) % artworks.length);
   };
@@ -86,12 +97,32 @@ const RecentArtworksSlider = () => {
         <SlideImage
           key={artwork._id}
           sx={{
-            backgroundImage: `url(${process.env.REACT_APP_API_URL}${artwork.imageUrl})`,
             opacity: currentSlide === index ? 1 : 0,
             transform: `translateX(${(index - currentSlide) * 100}%)`,
             zIndex: currentSlide === index ? 1 : 0
           }}
-        />
+        >
+          {imageErrors[artwork._id] ? (
+            <Box
+              sx={{
+                width: '100%',
+                height: '100%',
+                bgcolor: 'grey.200',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <Typography color="text.secondary">Image not available</Typography>
+            </Box>
+          ) : (
+            <SlideImg
+              src={`${process.env.REACT_APP_API_URL}${artwork.imageUrl}`}
+              alt={artwork.title}
+              onError={() => handleImageError(artwork._id)}
+            />
+          )}
+        </SlideImage>
       ))}
       <SlideContent>
         <Typography variant="h4" gutterBottom>
@@ -100,6 +131,11 @@ const RecentArtworksSlider = () => {
         <Typography variant="subtitle1" gutterBottom>
           by {artworks[currentSlide]?.artist.name}
         </Typography>
+        {imageErrors[artworks[currentSlide]?._id] && (
+          <Typography variant="body2" sx={{ mb: 1, opacity: 0.8 }}>
+            Image not available
+          </Typography>
+        )}
         <Button
           variant="contained"
           color="primary"
