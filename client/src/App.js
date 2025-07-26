@@ -18,6 +18,7 @@ import Profile from './components/user/Profile';
 import MyBids from './components/user/MyBids';
 import ArtistDetail from './components/artist/ArtistDetail';
 import MyArtworks from './components/artist/MyArtworks';
+import NotificationsPage from './components/notifications/NotificationsPage';
 import AdminDashboard from './components/admin/AdminDashboard';
 import PaymentCallback from './components/payment/PaymentCallback';
 import ArtistPayoutMethod from './components/profile/ArtistPayoutMethod';
@@ -107,11 +108,16 @@ function App() {
                         <MyBids />
                       </ProtectedRoute>
                     } />
-                    <Route path="/my-artworks" element={
-                      <ProtectedRoute>
-                        <MyArtworks />
-                      </ProtectedRoute>
-                    } />
+                            <Route path="/my-artworks" element={
+          <ProtectedRoute>
+            <MyArtworks />
+          </ProtectedRoute>
+        } />
+        <Route path="/notifications" element={
+          <ProtectedRoute>
+            <NotificationsPage />
+          </ProtectedRoute>
+        } />
                     <Route path="/profile/payout-method" element={<ArtistPayoutMethod />} />
                     <Route path="/payment/callback" element={<PaymentCallback />} />
                   </Routes>

@@ -81,7 +81,7 @@ router.post('/:artworkId', auth, async (req, res) => {
     await artwork.save();
     
     // Notify users about the new bid
-    await notifyBidPlaced(artwork, newBid, req.user);
+    await notifyBidPlaced(req.app.get('io'), artwork, newBid, req.user);
     
     // Emit socket event for real-time updates
     req.app.get('io').to(`auction:${artworkId}`).emit('bid-placed', {

@@ -107,7 +107,7 @@ const ArtworksAdmin = () => {
                   </TableCell>
                   <TableCell>{artwork.artist?.name}</TableCell>
                   <TableCell>{artwork.status}</TableCell>
-                  <TableCell>{artwork.currentBid ? `$${artwork.currentBid}` : '-'}</TableCell>
+                  <TableCell>{artwork.currentBid ? `₦${artwork.currentBid}` : '-'}</TableCell>
                   <TableCell>
                     {artwork.status === 'waiting' && (
                       <Button
@@ -158,8 +158,8 @@ const ArtworksAdmin = () => {
               <Typography>Artist: {selectedArtwork.artist?.name}</Typography>
               <Typography>Status: {selectedArtwork.status}</Typography>
               <Typography>Description: {selectedArtwork.description}</Typography>
-              <Typography>Current Bid: {selectedArtwork.currentBid ? `$${selectedArtwork.currentBid}` : '-'}</Typography>
-              <Typography>Starting Price: ${selectedArtwork.startingPrice}</Typography>
+              <Typography>Current Bid: {selectedArtwork.currentBid ? `₦${selectedArtwork.currentBid}` : '-'}</Typography>
+              <Typography>Starting Price: ₦{selectedArtwork.startingPrice}</Typography>
               <Typography>Auction Start: {selectedArtwork.auctionStartTime ? new Date(selectedArtwork.auctionStartTime).toLocaleString() : '-'}</Typography>
               <Typography>Auction End: {selectedArtwork.auctionEndTime ? new Date(selectedArtwork.auctionEndTime).toLocaleString() : '-'}</Typography>
               {selectedArtwork.imageUrl && (

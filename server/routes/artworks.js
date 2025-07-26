@@ -182,15 +182,11 @@ router.put('/:id/approve', [auth, adminAuth], async (req, res) => {
       { status: 'pending' }, // Set to pending, not active
       { new: true }
     ).populate('artist', '_id name');
-    // Emit notification to artist
-    const io = req.app.get('io');
-    if (io && artwork.artist?._id) {
-      io.to(artwork.artist._id.toString()).emit('notification', {
-        type: 'artwork_approved',
-        message: `Your artwork "${artwork.title}" has been approved and is now ready for auction.`,
-        artworkId: artwork._id
-      });
-    }
+    
+    // Send notification to artist
+    const notificationService = require('../services/notificationService');
+    await notificationService.notifyArtworkApproved(req.app.get('io'), artwork);
+    
     res.json(artwork);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -200,20 +196,17 @@ router.put('/:id/approve', [auth, adminAuth], async (req, res) => {
 // Admin: Reject artwork
 router.put('/:id/reject', [auth, adminAuth], async (req, res) => {
   try {
+    const { reason } = req.body;
     const artwork = await Artwork.findByIdAndUpdate(
       req.params.id,
       { status: 'rejected' },
       { new: true }
     ).populate('artist', '_id name');
-    // Emit notification to artist
-    const io = req.app.get('io');
-    if (io && artwork.artist?._id) {
-      io.to(artwork.artist._id.toString()).emit('notification', {
-        type: 'artwork_rejected',
-        message: `Your artwork "${artwork.title}" was rejected by admin.`,
-        artworkId: artwork._id
-      });
-    }
+    
+    // Send notification to artist
+    const notificationService = require('../services/notificationService');
+    await notificationService.notifyArtworkRejected(req.app.get('io'), artwork, reason);
+    
     res.json(artwork);
   } catch (error) {
     res.status(400).json({ error: error.message });

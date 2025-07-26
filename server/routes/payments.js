@@ -59,7 +59,14 @@ router.get('/verify/:reference', auth, async (req, res) => {
       { transactionReference: req.params.reference },
       { status: response.data.data.status === 'success' ? 'completed' : 'failed' },
       { new: true }
-    );
+    ).populate('artwork', 'title artist');
+    
+    // Send notification if payment is completed
+    if (payment.status === 'completed' && payment.artwork) {
+      const notificationService = require('../services/notificationService');
+      await notificationService.notifyPaymentCompleted(req.app.get('io'), payment, payment.artwork);
+    }
+    
     res.json({ status: payment.status, payment });
   } catch (error) {
     res.status(400).json({ error: error.response?.data?.message || error.message });

@@ -34,6 +34,7 @@ app.use('/api/artworks', require('./routes/artworks'));
 app.use('/api/bids', require('./routes/bids'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/payments', require('./routes/payments'));
+app.use('/api/notifications', require('./routes/notifications'));
 
 // WebSocket setup
 const server = require('http').createServer(app);
@@ -49,15 +50,27 @@ app.set('io', io);
 
 // Socket connection handling
 io.on('connection', (socket) => {
-  console.log('Client connected');
+      console.log('Client connected');
   
-  socket.on('join-room', (room) => {
-    socket.join(room);
-  });
+  // Join user room for notifications
+      socket.on('join-user-room', (userId) => {
+      socket.join(`user:${userId}`);
+    });
   
-  socket.on('disconnect', () => {
-    console.log('Client disconnected');
-  });
+  // Join auction room
+      socket.on('join-auction', ({ artworkId }) => {
+      socket.join(`auction:${artworkId}`);
+    });
+  
+  // Leave auction room
+      socket.on('leave-auction', ({ artworkId }) => {
+      socket.leave(`auction:${artworkId}`);
+    });
+  
+  // Disconnect
+      socket.on('disconnect', () => {
+      console.log('Client disconnected');
+    });
 });
 
 // Scheduled task to automatically end expired auctions
@@ -99,18 +112,50 @@ const autoEndExpiredAuctions = async () => {
         hasBids: !!highestBid
       });
       
-      console.log(`Auto-ended auction: ${artwork.title} - Status: ${artwork.status}`);
+      // Send notifications
+      const notificationService = require('./services/notificationService');
+      await notificationService.notifyAuctionEnded(io, artwork);
+      
+
     }
   } catch (error) {
     console.error('Error in auto-ending expired auctions:', error);
   }
 };
 
-// Run the task every minute
-setInterval(autoEndExpiredAuctions, 60000);
+// Scheduled task to send auction ending reminders
+const sendAuctionEndingReminders = async () => {
+  try {
+    const Artwork = require('./models/Artwork');
+    const notificationService = require('./services/notificationService');
+    
+    const now = new Date();
+    const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour from now
+    
+    const auctionsEndingSoon = await Artwork.find({
+      status: 'active',
+      auctionEndTime: { 
+        $gte: now, 
+        $lte: oneHourFromNow 
+      }
+    });
+    
+    for (const artwork of auctionsEndingSoon) {
+      await notificationService.notifyAuctionEndingSoon(io, artwork);
 
-// Also run it once on server start
+    }
+  } catch (error) {
+    console.error('Error in auction ending reminders task:', error);
+  }
+};
+
+// Run the tasks every minute
+setInterval(autoEndExpiredAuctions, 60000);
+setInterval(sendAuctionEndingReminders, 60000);
+
+// Also run them once on server start
 autoEndExpiredAuctions();
+sendAuctionEndingReminders();
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {

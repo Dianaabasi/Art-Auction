@@ -47,7 +47,7 @@ const Admin = () => {
         <Grid item xs={12} md={4}>
           <Paper style={{ padding: 20 }}>
             <Typography variant="h6">Total Revenue</Typography>
-            <Typography variant="h4">${stats.totalRevenue}</Typography>
+            <Typography variant="h4">₦{stats.totalRevenue}</Typography>
           </Paper>
         </Grid>
       </Grid>

@@ -45,7 +45,7 @@ const notificationTypes = [
 
 const Navbar = () => {
   const { user, isAuthenticated, logout } = useContext(AuthContext);
-  const { notifications, markAsRead, clearNotifications } = useNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications, deleteNotification } = useNotifications();
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -117,7 +117,7 @@ const Navbar = () => {
     return items;
   };
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const localUnreadCount = notifications.filter(n => !n.isRead).length;
 
   const renderMobileDrawer = () => (
     <Drawer
@@ -220,6 +220,9 @@ const Navbar = () => {
         open={Boolean(notificationAnchor)}
         onClose={handleMenuClose}
       >
+        <MenuItem onClick={() => { navigate('/notifications'); handleMenuClose(); }}>
+          View All Notifications
+        </MenuItem>
         <MenuItem onClick={() => { setSettingsOpen(true); handleMenuClose(); }}>
           Notification Settings
         </MenuItem>
@@ -229,18 +232,23 @@ const Navbar = () => {
         ) : (
           notifications.slice(0, 5).map((n) => (
             <MenuItem
-              key={n.id}
+              key={n._id}
               onClick={() => {
-                markAsRead(n.id);
+                markAsRead(n._id);
                 handleMenuClose();
               }}
-              selected={!n.read}
+              selected={!n.isRead}
             >
               {n.message}
             </MenuItem>
           ))
         )}
         {notifications.length > 0 && <Divider />}
+        {notifications.length > 0 && (
+          <MenuItem onClick={() => { markAllAsRead(); handleMenuClose(); }}>
+            Mark All as Read
+          </MenuItem>
+        )}
         {notifications.length > 0 && (
           <MenuItem onClick={() => { clearNotifications(); handleMenuClose(); }}>
             Clear All
